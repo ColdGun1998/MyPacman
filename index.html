@@ -1,0 +1,108 @@
+<html>
+
+<head>
+	<meta charset="utf8">
+	<title>MyPacman</title>
+	<link rel="shortcut icon" href="favicon.png">
+	<style>
+		* {
+			padding: 0;
+			margin: 0;
+		}
+
+		.main-wrapper {
+			width: 430px;
+			height: 615px;
+			margin: 20px auto;
+			border: 1px solid #9ca5bf;
+			background-color: #9ca5bf;
+			border-radius: 5px;
+
+		}
+
+		canvas {
+			margin: 10px auto;
+			display: block;
+			background: #000;
+			border-radius: 5px;
+
+		}
+
+		.info-wrapper {
+			width: 390px;
+			height: 50px;
+			margin: 10px auto;
+		}
+
+		.icon {
+			width: 50px;
+			height: 50px;
+			border-radius: 3px;
+			float: left;
+			background-color: #fff;
+		}
+
+		.icon img {
+			width: 100%;
+			height: 100%;
+		}
+
+		.writter-wrapper {
+			width: 250px;
+			height: 50px;
+			border-radius: 5px;
+			margin-left: 15px;
+			float: left;
+			position: relative;
+		}
+
+		.writter-wrapper>h3 {
+			margin-top: 2px;
+			color: white;
+		}
+
+		.writter-wrapper>a {
+			text-decoration: none;
+			color: white;
+			font-size: 12px;
+			position: absolute;
+			bottom: 6px;
+		}
+
+		.code {
+			width: 50px;
+			height: 50px;
+			float: right;
+		}
+
+		.code a {
+			display: block;
+		}
+
+		.code img {
+			width: 50px;
+			height: 50px;
+		}
+	</style>
+</head>
+
+<body>
+	<div class="main-wrapper">
+		<canvas id="canvas" width="390" height="535">不支持画布</canvas>
+		<div class="info-wrapper">
+			<div class="icon">
+				<img src="logo.png" alt="" srcset="">
+			</div>
+			<div class="writter-wrapper">
+				<h3>HTML5+JS Pacman</h3>
+				<a href="https://coldgun1998.github.io/MyBlog/">ColdGun</a>
+			</div>
+			<div class="code">
+				<a href="https://github.com/ColdGun1998"><img src="code.png" alt=""></a>
+			</div>
+		</div>
+	</div>
+	<script src="game.js"></script>
+</body>
+
+</html>
