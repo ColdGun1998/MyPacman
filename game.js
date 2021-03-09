@@ -9,8 +9,14 @@ var settings = {
     'beans': [55, 35],
     'map': [40, 20, 30],
     'score': [40, 525],
+    color: ['#f44336', '#7ac37d', '#2196f3']
 
 }
+
+var LEFT = 2;
+var RIGHT = 0;
+var UP = 3;
+var DOWN = 1;
 
 const map = [
     [2, 1, 0, 1, 1, 1, 1, 0, 1, 0],
@@ -151,7 +157,7 @@ class Item {
             height: 20,				//高
             color: '',              //颜色
             orientation: 1,			//当前定位方向,0表示右,1表示下,2表示左,3表示上
-            status: 0,				//对象状态,0表示正常运动，1表示吃到大力豆
+            status: 0,				//对象状态,0表示正常运动，1表示吃到大力豆的临时状态
             isCollide: false,        //是否碰撞
             speed: 2,
             times: 0,				//刷新画布计数(用于循环动画状态判断)
@@ -294,7 +300,26 @@ class Player extends Item {
             this.times = framesCounter / this.frames;		   //计数器
         }
 
-        if (!this.isCollide) {
+        //玩家的情况：
+        //正常，且没有被撞，正常移动
+        //正常，且撞到，开启倒计时，减寿命
+        //特殊，没有被撞，正常移动
+        //特殊，且撞到，正常移动，额外加分
+
+        //只要不是(正常的情况下被撞到),就正常移动
+        //如果正常且被撞到，则开启倒计时
+
+        if (this.isCollide && !this.status) {//如果在正常状态下被撞，则开启倒计时
+            if (!(framesCounter % 3)) {
+                this.timeout--;
+            }
+
+        } else {//其他情况，自由移动
+            //如果在特殊情况与幽灵撞到，则额外加分，
+            if (this.isCollide && this.status) {
+                this.score += 100;
+                this.isCollide = false;
+            }
             var coord = this.position2coord(this.x, this.y);
             if (coord.isCenter) {
                 //如果走到了cell中心，得分，吃豆
@@ -325,8 +350,6 @@ class Player extends Item {
                 this.y += this.speed * _SIN[this.orientation];
             }
 
-        } else {
-            this.timeout--;
         }
 
 
@@ -350,6 +373,16 @@ class Player extends Item {
         context.lineTo(this.x, this.y);
         context.closePath();
         context.fill();
+
+        //如果在特殊状态和幽灵碰撞，则额外画一个100分字样
+        if (this.status && this.isCollide) {
+            this.isCollide = false;
+            context.font = 'bold 10px Helvetica';
+            context.textAlign = 'left';
+            context.textBaseline = 'bottom';
+            context.fillStyle = '#9ca5bf';
+            context.fillText('100', this.x + 2 * _COS[this.orientation], this.y + 2 * _SIN[this.orientation]);
+        }
     }
 
     bindEvent() {
@@ -377,9 +410,11 @@ class Player extends Item {
 class Ghost extends Item {
     //幽灵类
     render(context) {
+        //如果进入特殊状况，则改变颜色
         context.fillStyle = this.color;
         context.beginPath();
         context.arc(this.x, this.y, this.width * .5, 0, Math.PI, true);
+        //身体
         switch (this.times % 2) {
             case 0:
                 context.lineTo(this.x - this.width * .5, this.y + this.height * .4);
@@ -389,50 +424,74 @@ class Ghost extends Item {
                 break;
             case 1:
                 context.lineTo(this.x - this.width * .5, this.y + this.height * .3);
-                context.quadraticCurveTo(this.x - this.width * .25, this.y + this.height * .5, this.x, this.y + this.height * .3);
-                context.quadraticCurveTo(this.x + this.width * .25, this.y + this.height * .5, this.x + this.width * .5, this.y + this.height * .3);
+                context.quadraticCurveTo(this.x - this.width * .4, this.y + this.height * .5, this.x, this.y + this.height * .3);
+                context.quadraticCurveTo(this.x + this.width * .4, this.y + this.height * .5, this.x + this.width * .5, this.y + this.height * .3);
                 break;
         }
         context.fill();
         context.closePath();
+
+        //眼睛
+        context.beginPath();
+        context.fillStyle = '#fff';
+        context.arc(this.x - this.width * .15, this.y - this.height * .21, this.width * .12, 0, 2 * Math.PI, false);
+        context.arc(this.x + this.width * .15, this.y - this.height * .21, this.width * .12, 0, 2 * Math.PI, false);
+        context.fill();
+        context.closePath();
+        //眼球
+        context.fillStyle = this.color;
+        context.beginPath();
+        context.arc(this.x - this.width * (.15 - .04 * _COS[this.orientation]), this.y - this.height * (.21 - .04 * _SIN[this.orientation]), this.width * .07, 0, 2 * Math.PI, false);
+        context.arc(this.x + this.width * (.15 + .04 * _COS[this.orientation]), this.y - this.height * (.21 - .04 * _SIN[this.orientation]), this.width * .07, 0, 2 * Math.PI, false);
+        context.fill();
+        context.closePath();
+
     }
 
     //随机游走
-    getRandomDirection(orientation, x, y) {
-        //之前是左右向移动
-        if (orientation == 0 || orientation == 2) {
-            let nextOrientation = [1, 3];
-            return nextOrientation[Math.floor(Math.random() * 2)];
-        } else {
-            let nextOrientation = [0, 2];
-            return nextOrientation[Math.floor(Math.random() * 2)];
-        }
+    getRandomDirection(orientation, coord) {
+        //可能前进的方向(不能回退)
+        let selections = (orientation === LEFT || orientation === RIGHT)
+            ? [UP, DOWN] : [LEFT, RIGHT];
+        selections.push(orientation);
+        //可以通行的方向
+        let controls = [];
+        selections.forEach((selection) => {
+            //如果该方向可以通过
+            if (this.edge(coord.x + _COS[selection], coord.y + _SIN[selection], selection)) {
+                controls.push(selection);
+            }
+        });
+        //随机从可通行的方向中选择一个
+        return controls[Math.floor(Math.random() * controls.length)];
+
 
     }
 
     update(framesCounter) {
-        if (!(framesCounter % this.frames)) {
-            this.times = framesCounter / this.frames;		   //计数器
-        }
 
+        if (!this.scene.player.status && this.isCollide) {
+            //停止移动
 
-        if (!this.isCollide) {
+        } else {
+
+            //如果幽灵处于特殊情况，则开启倒计时
+            if (this.status && (this.timeout > 0)) {
+                if (!(framesCounter % 2)) {
+                    this.timeout--;
+                }
+            }
+
             var coord = this.position2coord(this.x, this.y);
+            if (!(framesCounter % this.frames)) {
+                this.times = framesCounter / this.frames;		   //计数器
+            }
+
             if (coord.isCenter) {
-                //如果走到了cell中心
-                //判断前进方向是否有墙
-                //1、取出把缓存区中的操作方向
-                if (Object.keys(this.control).length != 0) {  //如果缓存区放入操作的方向
-                    this.orientation = this.control.orientation;
-                }
-                this.control = {};//清空缓存区
-                if (this.edge(coord.x + _COS[this.orientation], coord.y + _SIN[this.orientation], this.orientation) == 1) {
-                    this.x += this.speed * _COS[this.orientation];
-                    this.y += this.speed * _SIN[this.orientation];
-                } else {
-                    //如果前方是墙，则自动转向
-                    this.orientation = this.getRandomDirection(this.orientation, coord.x, coord.y)
-                }
+                //如果走到了cell中心，则寻找该cell可前进的方向，在可选择的方向中随机选择一个
+                this.orientation = this.getRandomDirection(this.orientation, coord)
+                this.x += this.speed * _COS[this.orientation];
+                this.y += this.speed * _SIN[this.orientation];
             } else {
                 //如果没有走到中心，按照前进方向前进即可
                 this.x += this.speed * _COS[this.orientation];
@@ -534,6 +593,7 @@ class Scene {
         window.addEventListener('keyup', e => {
             switch (e.keyCode) {
                 case 78: this.status = 1;
+                    console.log("N")
                     break;
             }
         })
@@ -550,6 +610,7 @@ class Scene {
             ghost.update(framesCounter);
         })
         this.damage();
+        this.isPopeye();
         //如果玩家生命值为0，则游戏结束
         if (this.player.life == 0) {
             this.status = 3;
@@ -604,6 +665,8 @@ class Scene {
             context.font = 'bold 14px Helvetica';
             context.fillText('Your Score:', 137, 290);
             context.fillText(this.player.score, 228, 290);
+            context.font = 'bold 22px Helvetica';
+            context.fillText('Press N to Start a Game', 74, 330);
         }
 
 
@@ -617,11 +680,53 @@ class Scene {
                 this.player.isCollide = true;
                 this.ghosts.forEach((ghost) => {
                     ghost.isCollide = true;
+
                 })
             }
         });
 
     }
+
+    isPopeye() {
+        //幽灵的情况：
+        //正常，且没有被撞，正常移动
+        //正常，且撞到，停止移动
+        //特殊，没有被撞，正常移动，改变颜色，移动速度为1
+        //特殊，且撞到，正常移动，改变颜色，闪烁加100分的字样，移动速度为2
+        //特殊，且倒计时快结束，正常移动，闪烁颜色，恢复移动速度为2
+
+        //如果player处于特殊情况
+        if (this.player.status) {
+            //幽灵也进入特殊状态
+            this.ghosts.forEach((ghost, index) => {
+                ghost.status = 1;
+                ghost.color = '#9ca5bf';
+                //如果倒计时即将结束，则开始闪烁
+                if (ghost.timeout < 40) {
+                    if (ghost.timeout % 4) {
+                        ghost.color = '#fff';
+                    } else {
+                        ghost.color = '#9ca5bf';
+                    }
+                }
+                //如果倒计时结束，则恢复状态
+                if (ghost.timeout == 0) {
+                    ghost.status = 0;
+                    ghost.color = settings['color'][index];
+                    ghost.timeout = 200;
+                    this.player.status = 0;
+                    ghost.isCollide = false;
+                    this.player.isCollide = false;
+                }
+            })
+
+        }
+
+    }
+
+
+
+
 
     //重置
     reset() {
@@ -643,14 +748,17 @@ class Scene {
         this.player.life--;
         this.player.isCollide = false;
         this.player.status = 0;
+        this.player.timeout = 30;
         this.ghosts.forEach((ghost, index) => {
             ghost.isCollide = false;
             ghost.x = settings['ghost'][index][0];
             ghost.y = settings['ghost'][index][1];
             ghost.orientation = settings['ghost'][index][2];
+            ghost.color = settings['color'][index];
+            ghost.speed = 2;
+            ghost.timeout = 200;
 
         })
-        this.player.timeout = 30;
 
     }
 }
@@ -660,7 +768,11 @@ class Scene {
 
 
 var game = new Game();
-var s1 = new Scene();
+var s1 = new Scene(
+    {
+        status: 0
+    }
+);
 var m1 = new Map({
     start_x: settings['map'][0],
     start_y: settings['map'][1],
@@ -688,18 +800,21 @@ var g1 = new Ghost({
     x: 205,
     y: 175,
     speed: 2,
-    color: '#f44336'
+    color: '#f44336',
+    timeout: 200,
 })
 
 var g2 = new Ghost({
     x: 235,
     y: 295,
-    color: '#7ac37d'
+    color: '#7ac37d',
+    timeout: 200,
 })
 var g3 = new Ghost({
     x: 55,
     y: 445,
-    color: '#2196f3'
+    color: '#2196f3',
+    timeout: 200,
 })
 
 s1.addMap(m1);
