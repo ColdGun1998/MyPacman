@@ -295,64 +295,71 @@ class Player extends Item {
     }
 
     update(framesCounter) {	// 更新对象状态，0：正常移动状态，1：吃到能量豆
+        if (this.scene.status == 1) {
 
-        if (!(framesCounter % this.frames)) {
-            this.times = framesCounter / this.frames;		   //计数器
-        }
-
-        //玩家的情况：
-        //正常，且没有被撞，正常移动
-        //正常，且撞到，开启倒计时，减寿命
-        //特殊，没有被撞，正常移动
-        //特殊，且撞到，正常移动，额外加分
-
-        //只要不是(正常的情况下被撞到),就正常移动
-        //如果正常且被撞到，则开启倒计时
-
-        if (this.isCollide && !this.status) {//如果在正常状态下被撞，则开启倒计时
-            if (!(framesCounter % 3)) {
-                this.timeout--;
+            if (!(framesCounter % this.frames)) {
+                this.times = framesCounter / this.frames;		   //计数器
             }
 
-        } else {//其他情况，自由移动
-            //如果在特殊情况与幽灵撞到，则额外加分，
-            if (this.isCollide && this.status) {
-                this.score += 100;
-                this.isCollide = false;
-            }
-            var coord = this.position2coord(this.x, this.y);
-            if (coord.isCenter) {
-                //如果走到了cell中心，得分，吃豆
-                if (this.scene.beans.data[coord.y][coord.x]) {
-                    this.score += 10;
-                    //如果吃到的是能量豆，则额外加分，并进入大力状态
-                    if (this.scene.beans.goods[coord.x + ',' + coord.y]) {
-                        this.score += 90;
-                        this.status = 1;
+            //玩家的情况：
+            //正常，且没有被撞，正常移动
+            //正常，且撞到，开启倒计时，减寿命
+            //特殊，没有被撞，正常移动
+            //特殊，且撞到，正常移动，额外加分
+
+            //只要不是(正常的情况下被撞到),就正常移动
+            //如果正常且被撞到，则开启倒计时
+
+            if (this.isCollide && !this.status) {//如果在正常状态下被撞，则开启倒计时
+                if (!(framesCounter % 3)) {
+                    this.timeout--;
+                }
+
+            } else {//其他情况，自由移动
+                //如果在特殊情况与幽灵撞到，则额外加分，
+                if (this.isCollide && this.status) {
+                    this.score += 100;
+                    this.isCollide = false;
+                }
+                var coord = this.position2coord(this.x, this.y);
+                if (coord.isCenter) {
+                    //如果走到了cell中心，得分，吃豆
+                    if (this.scene.beans.data[coord.y][coord.x]) {
+                        this.score += 10;
+                        //如果吃到的是能量豆，则额外加分，并进入大力状态
+                        if (this.scene.beans.goods[coord.x + ',' + coord.y]) {
+                            this.scene.ghosts.forEach((ghost) => {
+                                ghost.timeout += 200;
+                            })
+                            this.score += 90;
+                            this.status = 1;
+                        }
                     }
-                }
-                this.scene.beans.data[coord.y][coord.x] = 0;
-                //1、取出把缓存区中的操作方向
-                if (Object.keys(this.control).length != 0) {  //如果缓存区放入操作的方向
-                    this.orientation = this.control.orientation;
-                }
-                this.control = {};//清空缓存区
-                //2、判断前进方向是否有墙
-                if (this.edge(coord.x + _COS[this.orientation], coord.y + _SIN[this.orientation], this.orientation) == 1) {
+                    this.scene.beans.data[coord.y][coord.x] = 0;
+                    //1、取出把缓存区中的操作方向
+                    if (Object.keys(this.control).length != 0) {  //如果缓存区放入操作的方向
+                        this.orientation = this.control.orientation;
+                    }
+                    this.control = {};//清空缓存区
+                    //2、判断前进方向是否有墙
+                    if (this.edge(coord.x + _COS[this.orientation], coord.y + _SIN[this.orientation], this.orientation) == 1) {
+                        this.x += this.speed * _COS[this.orientation];
+                        this.y += this.speed * _SIN[this.orientation];
+                    } else {
+                    }
+
+                } else {
+                    //如果没有走到中心，按照前进方向前进即可
                     this.x += this.speed * _COS[this.orientation];
                     this.y += this.speed * _SIN[this.orientation];
-                } else {
                 }
 
-            } else {
-                //如果没有走到中心，按照前进方向前进即可
-                this.x += this.speed * _COS[this.orientation];
-                this.y += this.speed * _SIN[this.orientation];
             }
 
         }
+        if (this.scene.status == 2) {
 
-
+        }
 
     }
 
@@ -469,34 +476,40 @@ class Ghost extends Item {
     }
 
     update(framesCounter) {
+        if (this.scene.status == 1) {
+            if (!this.scene.player.status && this.isCollide) {
+                //停止移动
 
-        if (!this.scene.player.status && this.isCollide) {
-            //停止移动
-
-        } else {
-
-            //如果幽灵处于特殊情况，则开启倒计时
-            if (this.status && (this.timeout > 0)) {
-                if (!(framesCounter % 2)) {
-                    this.timeout--;
-                }
-            }
-
-            var coord = this.position2coord(this.x, this.y);
-            if (!(framesCounter % this.frames)) {
-                this.times = framesCounter / this.frames;		   //计数器
-            }
-
-            if (coord.isCenter) {
-                //如果走到了cell中心，则寻找该cell可前进的方向，在可选择的方向中随机选择一个
-                this.orientation = this.getRandomDirection(this.orientation, coord)
-                this.x += this.speed * _COS[this.orientation];
-                this.y += this.speed * _SIN[this.orientation];
             } else {
-                //如果没有走到中心，按照前进方向前进即可
-                this.x += this.speed * _COS[this.orientation];
-                this.y += this.speed * _SIN[this.orientation];
+
+                //如果幽灵处于特殊情况，则开启倒计时
+                if (this.status && (this.timeout > 0)) {
+                    if (!(framesCounter % 2)) {
+                        this.timeout--;
+                    }
+                }
+
+                var coord = this.position2coord(this.x, this.y);
+                if (!(framesCounter % this.frames)) {
+                    this.times = framesCounter / this.frames;		   //计数器
+                }
+
+                if (coord.isCenter) {
+                    //如果走到了cell中心，则寻找该cell可前进的方向，在可选择的方向中随机选择一个
+                    this.orientation = this.getRandomDirection(this.orientation, coord)
+                    this.x += this.speed * _COS[this.orientation];
+                    this.y += this.speed * _SIN[this.orientation];
+                } else {
+                    //如果没有走到中心，按照前进方向前进即可
+                    this.x += this.speed * _COS[this.orientation];
+                    this.y += this.speed * _SIN[this.orientation];
+                }
+
             }
+
+        }
+
+        if (this.scene.status == 2) {
 
         }
     }
@@ -592,9 +605,25 @@ class Scene {
     bindEvent() {
         window.addEventListener('keyup', e => {
             switch (e.keyCode) {
-                case 78: this.status = 1;
-                    console.log("N")
+                //按下N键开始
+                case 78:
+                    this.status = 1;
+                    //如果已经结束，则重置参数
+                    if (this.player.life == 0) {
+                        this.reset();
+                        this.player.life = 3;
+                        this.player.score = 0;
+                    }
                     break;
+                case 32:
+                    if (this.status == 1) {
+                        this.status = 2;
+                        break;
+                    }
+                    if (this.status == 2) {
+                        this.status = 1;
+                        break;
+                    }
             }
         })
 
@@ -633,7 +662,7 @@ class Scene {
             context.fillText('Press N to Start a Game', 70, 270);
         }
 
-        if (this.status == 1) {
+        if (this.status == 1 || this.status == 2) {
             //绘制地图
             if (!this.map.initFlag) {
                 this.map.render(context);
@@ -656,6 +685,7 @@ class Scene {
             this.score.render(context);
         }
 
+
         if (this.status == 3) {
             context.font = 'bold 22px Helvetica';
             context.textAlign = 'left';
@@ -666,7 +696,7 @@ class Scene {
             context.fillText('Your Score:', 137, 290);
             context.fillText(this.player.score, 228, 290);
             context.font = 'bold 22px Helvetica';
-            context.fillText('Press N to Start a Game', 74, 330);
+            context.fillText('Press N to Start a New Game', 50, 330);
         }
 
 
@@ -713,7 +743,7 @@ class Scene {
                 if (ghost.timeout == 0) {
                     ghost.status = 0;
                     ghost.color = settings['color'][index];
-                    ghost.timeout = 200;
+                    ghost.timeout = 1;
                     this.player.status = 0;
                     ghost.isCollide = false;
                     this.player.isCollide = false;
@@ -737,7 +767,11 @@ class Scene {
 
     //重置Beans
     resetBeans() {
-
+        for (let i = 0; i < this.beans.x_length; i++) {
+            for (let j = 0; j < this.beans.y_length; j++) {
+                this.beans.data[j][i] = 1;
+            }
+        }
     }
 
     //重置玩家和幽灵
@@ -756,7 +790,7 @@ class Scene {
             ghost.orientation = settings['ghost'][index][2];
             ghost.color = settings['color'][index];
             ghost.speed = 2;
-            ghost.timeout = 200;
+            ghost.timeout = 1;
 
         })
 
@@ -801,20 +835,20 @@ var g1 = new Ghost({
     y: 175,
     speed: 2,
     color: '#f44336',
-    timeout: 200,
+    timeout: 1,
 })
 
 var g2 = new Ghost({
     x: 235,
     y: 295,
     color: '#7ac37d',
-    timeout: 200,
+    timeout: 1,
 })
 var g3 = new Ghost({
     x: 55,
     y: 445,
     color: '#2196f3',
-    timeout: 200,
+    timeout: 1,
 })
 
 s1.addMap(m1);
